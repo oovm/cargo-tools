@@ -27,7 +27,7 @@ pub fn find_workspace_root(start_dir: &Path) -> Result<PathBuf> {
     let mut current_dir = start_dir.to_path_buf();
     
     loop {
-        let cargo_toml = current_dir.join("../../../../Cargo.toml");
+        let cargo_toml = current_dir.join("Cargo.toml");
         if cargo_toml.exists() {
             let content = fs::read_to_string(&cargo_toml)?;
             if content.contains("[workspace]") {
@@ -89,7 +89,7 @@ pub fn parse_cargo_toml(path: &Path) -> Result<CargoPackage> {
 
 /// Discovers all packages in the workspace
 pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspace> {
-    let workspace_cargo_toml = workspace_root.join("../../../../Cargo.toml");
+    let workspace_cargo_toml = workspace_root.join("Cargo.toml");
     let content = fs::read_to_string(&workspace_cargo_toml)?;
     let toml_value: toml::Value = toml::from_str(&content)?;
     
@@ -127,7 +127,7 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
                 let path = entry.path();
                 
                 if path.is_dir() {
-                    let cargo_toml = path.join("../../../../Cargo.toml");
+                    let cargo_toml = path.join("Cargo.toml");
                     if cargo_toml.exists() {
                         if let Ok(package) = parse_cargo_toml(&cargo_toml) {
                             packages.insert(package.name.clone(), package);
@@ -136,7 +136,7 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
                 }
             }
         } else {
-            let cargo_toml = member_path.join("../../../../Cargo.toml");
+            let cargo_toml = member_path.join("Cargo.toml");
             if cargo_toml.exists() {
                 if let Ok(package) = parse_cargo_toml(&cargo_toml) {
                     packages.insert(package.name.clone(), package);

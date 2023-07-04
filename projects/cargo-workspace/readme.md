@@ -14,45 +14,59 @@ A command-line tool for publishing Cargo workspace projects in dependency order.
 ## Installation
 
 ```bash
-cargo install cargo-workspace
+cargo install cargo-workspace-v2
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/oovm/cargo-tools
+cd cargo-tools
+cargo install --path projects/cargo-workspace
 ```
 
 ## Usage
 
+### Show workspace information
+
+```bash
+cargo workspace
+```
+
 ### List all projects in the workspace
 
 ```bash
-cargo workspace-publish list
+cargo workspace list
 ```
 
 ### Publish all projects in the workspace
 
 ```bash
-cargo workspace-publish publish
+cargo workspace publish
 ```
 
 ### Use a specific workspace root directory
 
 ```bash
-cargo workspace-publish --workspace-root /path/to/workspace publish
+cargo workspace --workspace-root /path/to/workspace publish
 ```
 
 ### Dry-run mode (without actually publishing)
 
 ```bash
-cargo workspace-publish publish --dry-run
+cargo workspace publish --dry-run
 ```
 
 ### Skip already published projects
 
 ```bash
-cargo workspace-publish publish --skip-published
+cargo workspace publish --skip-published
 ```
 
 ### Use a publish token
 
 ```bash
-cargo workspace-publish publish --token your_token
+cargo workspace publish --token your_token
 ```
 
 ## How It Works
@@ -80,13 +94,16 @@ workspace/
 
 Where `core` depends on `utils`, and `app` depends on `core`.
 
-Running `cargo workspace-publish list` will output:
+Running `cargo workspace list` will output:
 
 ```
 Packages in publish order:
-  utils v0.1.0 (/path/to/workspace/utils)
-  core v0.1.0 (/path/to/workspace/core)
-  app v0.1.0 (/path/to/workspace/app)
+1. utils v0.1.0
+   Dependencies: 
+2. core v0.1.0
+   Dependencies: utils
+3. app v0.1.0
+   Dependencies: core
 ```
 
 ## License

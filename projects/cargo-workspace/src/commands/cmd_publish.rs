@@ -1,5 +1,4 @@
 use crate::{
-    commands::ListCommand,
     errors::{CargoError, Result},
     helpers::workspace::CargoPackage,
     CommandOptions,

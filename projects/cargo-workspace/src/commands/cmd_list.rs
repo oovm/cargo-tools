@@ -38,7 +38,7 @@ impl ListCommand {
             
             if !package.dependencies.is_empty() {
                 let workspace_deps: Vec<String> = package.dependencies.iter()
-                    .filter(|dep| publishable_packages.iter().any(|p| &p.name == dep))
+                    .filter(|dep| publishable_packages.iter().any(|p| p.name == **dep))
                     .cloned()
                     .collect();
                     

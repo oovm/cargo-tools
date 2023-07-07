@@ -1,7 +1,4 @@
-use cargo_workspace::{
-    CargoError, CargoWorkspaceCommand
-    ,
-};
+use cargo_workspace::{CargoError, CargoWorkspaceCommand};
 use clap::Parser;
 
 #[tokio::main]

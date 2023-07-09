@@ -53,6 +53,11 @@ pub fn find_workspace_root(start_dir: &Path) -> Result<PathBuf> {
 
 /// Parses a Cargo.toml file and extracts package information
 pub fn parse_cargo_toml(path: &Path) -> Result<CargoPackage> {
+    parse_cargo_toml_with_workspace(path, None)
+}
+
+/// Parses a Cargo.toml file and extracts package information with workspace context
+pub fn parse_cargo_toml_with_workspace(path: &Path, workspace_package: Option<&toml::Value>) -> Result<CargoPackage> {
     let content = fs::read_to_string(path)?;
     let toml_value: toml::Value = toml::from_str(&content)?;
 
@@ -64,11 +69,31 @@ pub fn parse_cargo_toml(path: &Path) -> Result<CargoPackage> {
         .ok_or_else(|| CargoError::InvalidToml("Missing package name".to_string()))?
         .to_string();
 
-    let version = package
-        .get("version")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| CargoError::InvalidToml("Missing package version".to_string()))?
-        .to_string();
+    // Handle workspace inheritance for version
+    let version = if let Some(version_value) = package.get("version") {
+        if let Some(version_str) = version_value.as_str() {
+            version_str.to_string()
+        } else if let Some(version_table) = version_value.as_table() {
+            // Check for workspace inheritance
+            if version_table.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false) {
+                // Try to get version from workspace package
+                if let Some(ws_pkg) = workspace_package {
+                    ws_pkg.get("version")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("0.0.0")
+                        .to_string()
+                } else {
+                    "0.0.0".to_string() // Default version when workspace info is not available
+                }
+            } else {
+                return Err(CargoError::InvalidToml("Invalid version format".to_string()));
+            }
+        } else {
+            return Err(CargoError::InvalidToml("Invalid version format".to_string()));
+        }
+    } else {
+        return Err(CargoError::InvalidToml("Missing package version".to_string()));
+    };
 
     let publish = package.get("publish").and_then(|v| v.as_bool()).unwrap_or(true);
 
@@ -78,7 +103,13 @@ pub fn parse_cargo_toml(path: &Path) -> Result<CargoPackage> {
     for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
         if let Some(deps) = toml_value.get(section) {
             if let Some(deps_table) = deps.as_table() {
-                for dep_name in deps_table.keys() {
+                for (dep_name, dep_value) in deps_table {
+                    // Skip workspace dependencies that have workspace = true
+                    if let Some(dep_obj) = dep_value.as_table() {
+                        if dep_obj.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false) {
+                            continue; // Skip workspace dependencies
+                        }
+                    }
                     dependencies.push(dep_name.clone());
                 }
             }
@@ -123,6 +154,9 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
     let workspace_section =
         toml_value.get("workspace").ok_or_else(|| CargoError::InvalidToml("Missing [workspace] section".to_string()))?;
 
+    // Get workspace package info for inheritance
+    let workspace_package = workspace_section.get("package");
+
     let mut members = Vec::new();
     if let Some(members_value) = workspace_section.get("members") {
         if let Some(members_array) = members_value.as_array() {
@@ -139,7 +173,7 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
 
     // Parse the workspace root package if it exists
     if workspace_cargo_toml.exists() {
-        if let Ok(package) = parse_cargo_toml(&workspace_cargo_toml) {
+        if let Ok(package) = parse_cargo_toml_with_workspace(&workspace_cargo_toml, workspace_package) {
             packages.insert(package.name.clone(), package);
         }
     }
@@ -154,7 +188,7 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
             
             let cargo_toml = member_path.join("Cargo.toml");
             if cargo_toml.exists() {
-                if let Ok(package) = parse_cargo_toml(&cargo_toml) {
+                if let Ok(package) = parse_cargo_toml_with_workspace(&cargo_toml, workspace_package) {
                     packages.insert(package.name.clone(), package);
                 }
             }

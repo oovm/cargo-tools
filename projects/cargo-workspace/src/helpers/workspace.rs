@@ -34,8 +34,12 @@ pub fn find_workspace_root(start_dir: &Path) -> Result<PathBuf> {
         let cargo_toml = current_dir.join("Cargo.toml");
         if cargo_toml.exists() {
             let content = fs::read_to_string(&cargo_toml)?;
-            if content.contains("[workspace]") {
-                return Ok(current_dir);
+            // Parse the TOML file properly instead of just checking for "[workspace]" string
+            if let Ok(toml_value) = toml::from_str::<toml::Value>(&content) {
+                // Check if this is a workspace by looking for a workspace section
+                if toml_value.get("workspace").is_some() {
+                    return Ok(current_dir);
+                }
             }
         }
 

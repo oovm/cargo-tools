@@ -5,6 +5,8 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
+use glob::glob;
 
 /// Represents a Cargo package
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +84,32 @@ pub fn parse_cargo_toml(path: &Path) -> Result<CargoPackage> {
     Ok(CargoPackage { name, version, path: path.parent().unwrap_or(path).to_path_buf(), dependencies, publish })
 }
 
+/// Expands a glob pattern to matching paths
+fn expand_glob_pattern(workspace_root: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
+    let mut result = Vec::new();
+    
+    // Convert the pattern to an absolute path pattern
+    let absolute_pattern = workspace_root.join(pattern);
+    let pattern_str = absolute_pattern.to_string_lossy();
+    
+    // Use the glob crate to expand the pattern
+    match glob(&pattern_str) {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                // Only include directories
+                if entry.is_dir() {
+                    result.push(entry);
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to read glob pattern {}: {}", pattern, e);
+        }
+    }
+    
+    Ok(result)
+}
+
 /// Discovers all packages in the workspace
 pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspace> {
     let workspace_cargo_toml = workspace_root.join("Cargo.toml");
@@ -103,6 +131,7 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
     }
 
     let mut packages = HashMap::new();
+    let mut member_paths = Vec::new();
 
     // Parse the workspace root package if it exists
     if workspace_cargo_toml.exists() {
@@ -113,25 +142,12 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
 
     // Parse all member packages
     for member_pattern in &members {
-        let member_path = workspace_root.join(&member_pattern);
-
-        // Handle glob patterns
-        if member_pattern.contains('*') {
-            for entry in fs::read_dir(workspace_root)? {
-                let entry = entry?;
-                let path = entry.path();
-
-                if path.is_dir() {
-                    let cargo_toml = path.join("Cargo.toml");
-                    if cargo_toml.exists() {
-                        if let Ok(package) = parse_cargo_toml(&cargo_toml) {
-                            packages.insert(package.name.clone(), package);
-                        }
-                    }
-                }
-            }
-        }
-        else {
+        // Expand glob patterns
+        let expanded_paths = expand_glob_pattern(workspace_root, member_pattern)?;
+        
+        for member_path in expanded_paths {
+            member_paths.push(member_path.clone());
+            
             let cargo_toml = member_path.join("Cargo.toml");
             if cargo_toml.exists() {
                 if let Ok(package) = parse_cargo_toml(&cargo_toml) {
@@ -143,7 +159,7 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
 
     Ok(CargoWorkspace {
         root: workspace_root.to_path_buf(),
-        members: members.iter().map(|m| workspace_root.join(m)).collect(),
+        members: member_paths,
         packages,
     })
 }

@@ -103,6 +103,14 @@ pub fn publish_package(package: &CargoPackage, dry_run: bool, token: Option<&str
     else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
+        
+        // Check if the error is due to the package already existing
+        if stderr.contains("already exists on crates.io index") || 
+           stderr.contains("crate version") && stderr.contains("is already uploaded") {
+            info!("Package {} v{} already exists on crates.io, skipping", package.name, package.version);
+            return Ok(());
+        }
+        
         error!("Failed to publish {}: {}", package.name, stderr);
         error!("Output: {}", stdout);
         Err(CargoError::PublishError(format!("Failed to publish {}: {}", package.name, stderr)))

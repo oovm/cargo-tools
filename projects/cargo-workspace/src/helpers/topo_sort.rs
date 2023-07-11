@@ -17,12 +17,13 @@ pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>>
     }
 
     // Add edges based on dependencies
+    // Edge direction: dependency -> dependent (so dependencies come first in topological order)
     for (name, package) in &workspace.packages {
-        let from_index = node_indices.get(name).unwrap();
+        let to_index = node_indices.get(name).unwrap();
 
         for dep in &package.dependencies {
             // Only add edges for dependencies that are also in the workspace
-            if let Some(to_index) = node_indices.get(dep) {
+            if let Some(from_index) = node_indices.get(dep) {
                 graph.add_edge(*from_index, *to_index, ());
             }
         }
@@ -40,10 +41,28 @@ pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>>
             }
             Ok(sorted_packages)
         }
-        Err(_) => {
-            // Find circular dependencies for better error reporting
-            let cycles = find_cycles(&graph, &node_indices);
-            Err(CargoError::CircularDependency(format!("Circular dependencies detected: {:?}", cycles)))
+        Err(cycle_error) => {
+            // Use petgraph's cycle detection to get the actual cycle
+            use petgraph::algo::is_cyclic_directed;
+            if is_cyclic_directed(&graph) {
+                // Find the actual cycle using strongly connected components
+                use petgraph::algo::tarjan_scc;
+                let sccs = tarjan_scc(&graph);
+                let mut cycles = Vec::new();
+                
+                for scc in sccs {
+                    if scc.len() > 1 {
+                        let cycle_names: Vec<String> = scc.iter()
+                            .map(|&idx| graph[idx].clone())
+                            .collect();
+                        cycles.push(cycle_names.join(" -> "));
+                    }
+                }
+                
+                Err(CargoError::CircularDependency(format!("Circular dependencies detected: {:?}", cycles)))
+            } else {
+                Err(CargoError::CircularDependency("Topological sort failed but no cycles detected".to_string()))
+            }
         }
     }
 }

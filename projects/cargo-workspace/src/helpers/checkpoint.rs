@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Checkpoint data for tracking published packages
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PublishCheckpoint {
-    /// Workspace root directory
+    /// Workspace root directory (full path)
     pub workspace_root: PathBuf,
-    /// Set of already published package names
+    /// Set of already published packages with version (format: "name@version")
     pub published_packages: HashSet<String>,
     /// Timestamp of the last checkpoint
     pub timestamp: chrono::DateTime<chrono::Utc>,
@@ -16,6 +16,10 @@ pub struct PublishCheckpoint {
 impl PublishCheckpoint {
     /// Create a new checkpoint for the given workspace
     pub fn new(workspace_root: PathBuf) -> Self {
+        // Convert to absolute path
+        let workspace_root = std::fs::canonicalize(&workspace_root)
+            .unwrap_or_else(|_| workspace_root.clone());
+            
         Self {
             workspace_root,
             published_packages: HashSet::new(),
@@ -24,18 +28,20 @@ impl PublishCheckpoint {
     }
 
     /// Mark a package as published
-    pub fn mark_published(&mut self, package_name: String) {
-        self.published_packages.insert(package_name);
+    pub fn mark_published(&mut self, package_name: String, package_version: String) {
+        let package_with_version = format!("{}@{}", package_name, package_version);
+        self.published_packages.insert(package_with_version);
         self.timestamp = chrono::Utc::now();
     }
 
     /// Check if a package is marked as published
-    pub fn is_published(&self, package_name: &str) -> bool {
-        self.published_packages.contains(package_name)
+    pub fn is_published(&self, package_name: &str, package_version: &str) -> bool {
+        let package_with_version = format!("{}@{}", package_name, package_version);
+        self.published_packages.contains(&package_with_version)
     }
 
     /// Get the checkpoint file path for a workspace
-    pub fn checkpoint_path(workspace_root: &PathBuf) -> PathBuf {
+    pub fn checkpoint_path(workspace_root: &Path) -> PathBuf {
         let target_dir = workspace_root.join("target");
         target_dir.join("cargo-workspace-publish.toml")
     }
@@ -61,7 +67,7 @@ impl PublishCheckpoint {
     }
 
     /// Load checkpoint from file
-    pub fn load(workspace_root: &PathBuf) -> Result<Option<Self>, crate::errors::CargoError> {
+    pub fn load(workspace_root: &Path) -> Result<Option<Self>, crate::errors::CargoError> {
         let checkpoint_path = Self::checkpoint_path(workspace_root);
         
         if !checkpoint_path.exists() {
@@ -79,7 +85,7 @@ impl PublishCheckpoint {
     }
 
     /// Remove the checkpoint file
-    pub fn remove(workspace_root: &PathBuf) -> Result<(), crate::errors::CargoError> {
+    pub fn remove(workspace_root: &Path) -> Result<(), crate::errors::CargoError> {
         let checkpoint_path = Self::checkpoint_path(workspace_root);
         
         if checkpoint_path.exists() {

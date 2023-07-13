@@ -109,6 +109,14 @@ cargo workspace publish --resume
 
 This resumes a publish operation that was interrupted, using the checkpoint file saved in `target/cargo-workspace-publish.toml`.
 
+### Set interval between package publications
+
+```bash
+cargo workspace publish --publish-interval 10
+```
+
+This sets a 10-second interval between publishing each package to avoid triggering rate limits on crates.io. The default interval is 5 seconds.
+
 ## How It Works
 
 1. The tool first looks for the `Cargo.toml` file in the current directory or specified directory to determine if it's a workspace root directory

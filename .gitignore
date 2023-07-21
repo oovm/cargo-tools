@@ -11,4 +11,4 @@ time-travel.*
 
 # Rust
 target/
-Cargo.lock
+reword.pending.json

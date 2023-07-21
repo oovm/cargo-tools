@@ -3,7 +3,7 @@ use crate::{
     helpers::workspace::{CargoPackage, CargoWorkspace},
 };
 use petgraph::{Directed, Graph, algo::toposort};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// Performs topological sort on workspace packages based on their dependencies
 pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>> {
@@ -11,7 +11,7 @@ pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>>
     let mut node_indices: HashMap<String, petgraph::prelude::NodeIndex> = HashMap::new();
 
     // Add all packages as nodes
-    for (name, _package) in &workspace.packages {
+    for name in workspace.packages.keys() {
         let index = graph.add_node(name.clone());
         node_indices.insert(name.clone(), index);
     }
@@ -41,7 +41,7 @@ pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>>
             }
             Ok(sorted_packages)
         }
-        Err(cycle_error) => {
+        Err(_cycle_error) => {
             // Use petgraph's cycle detection to get the actual cycle
             use petgraph::algo::is_cyclic_directed;
             if is_cyclic_directed(&graph) {
@@ -49,60 +49,21 @@ pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>>
                 use petgraph::algo::tarjan_scc;
                 let sccs = tarjan_scc(&graph);
                 let mut cycles = Vec::new();
-                
+
                 for scc in sccs {
                     if scc.len() > 1 {
-                        let cycle_names: Vec<String> = scc.iter()
-                            .map(|&idx| graph[idx].clone())
-                            .collect();
+                        let cycle_names: Vec<String> = scc.iter().map(|&idx| graph[idx].clone()).collect();
                         cycles.push(cycle_names.join(" -> "));
                     }
                 }
-                
+
                 Err(CargoError::CircularDependency(format!("Circular dependencies detected: {:?}", cycles)))
-            } else {
+            }
+            else {
                 Err(CargoError::CircularDependency("Topological sort failed but no cycles detected".to_string()))
             }
         }
     }
-}
-
-/// Helper function to find cycles in the dependency graph
-fn find_cycles(
-    graph: &Graph<String, (), Directed>,
-    node_indices: &HashMap<String, petgraph::prelude::NodeIndex>,
-) -> Vec<String> {
-    use petgraph::visit::Dfs;
-
-    let mut cycles = Vec::new();
-    let mut visited = HashSet::new();
-
-    for (name, index) in node_indices {
-        if !visited.contains(name) {
-            let mut dfs = Dfs::new(graph, *index);
-            let mut path = Vec::new();
-            let mut path_set = HashSet::new();
-
-            while let Some(nx) = dfs.next(graph) {
-                let node_name = &graph[nx];
-
-                if path_set.contains(node_name) {
-                    // Found a cycle
-                    if let Some(pos) = path.iter().position(|n| n == node_name) {
-                        let cycle = path[pos..].join(" -> ");
-                        cycles.push(format!("{} -> {}", cycle, node_name));
-                    }
-                    break;
-                }
-
-                path.push(node_name.clone());
-                path_set.insert(node_name.clone());
-                visited.insert(node_name.clone());
-            }
-        }
-    }
-
-    cycles
 }
 
 /// Filters packages based on whether they should be published

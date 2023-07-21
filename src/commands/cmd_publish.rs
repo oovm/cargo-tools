@@ -4,7 +4,10 @@ use crate::{
     helpers::{checkpoint::PublishCheckpoint, workspace::CargoPackage},
 };
 use clap::Parser;
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 use tracing::{error, info, warn};
 
 #[derive(Debug, Parser)]
@@ -37,8 +40,12 @@ pub struct PublishCommand {
 impl PublishCommand {
     pub async fn run(&self, shared: &CommandOptions) -> std::result::Result<(), CargoError> {
         // Use the workspace root from the command if provided, otherwise use the shared one
-        let workspace_root =
-            if self.workspace_root != PathBuf::from(".") { self.workspace_root.clone() } else { shared.workspace_root.clone() };
+        let workspace_root = if self.workspace_root.as_path() != Path::new(".") {
+            self.workspace_root.clone()
+        }
+        else {
+            shared.workspace_root.clone()
+        };
 
         // Use the dry_run flag from the command if provided, otherwise use the shared one
         let dry_run = self.dry_run || shared.dry_run;
@@ -75,16 +82,16 @@ impl PublishCommand {
                     PublishCheckpoint::new(workspace_root.clone())
                 }
             }
-        } else {
+        }
+        else {
             // Remove any existing checkpoint if not resuming
             PublishCheckpoint::remove(&workspace_root)?;
             PublishCheckpoint::new(workspace_root.clone())
         };
 
         // Filter packages based on checkpoint
-        let packages_to_publish: Vec<&CargoPackage> = publishable_packages.iter()
-            .filter(|p| !checkpoint.is_published(&p.name, &p.version))
-            .collect();
+        let packages_to_publish: Vec<&CargoPackage> =
+            publishable_packages.iter().filter(|p| !checkpoint.is_published(&p.name, &p.version)).collect();
 
         if packages_to_publish.is_empty() {
             println!("All packages have already been published.");
@@ -107,7 +114,7 @@ impl PublishCommand {
             dry_run,
             skip_published,
             token.map(|s| s.as_str()),
-            self.publish_interval
+            self.publish_interval,
         );
 
         match result {
@@ -116,7 +123,8 @@ impl PublishCommand {
                 if !dry_run {
                     PublishCheckpoint::remove(&workspace_root)?;
                     println!("All packages published successfully!");
-                } else {
+                }
+                else {
                     println!("Dry-run completed successfully!");
                 }
                 Ok(())
@@ -164,14 +172,15 @@ pub fn publish_package(package: &CargoPackage, dry_run: bool, token: Option<&str
     else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        
+
         // Check if the error is due to the package already existing
-        if stderr.contains("already exists on crates.io index") || 
-           stderr.contains("crate version") && stderr.contains("is already uploaded") {
+        if stderr.contains("already exists on crates.io index")
+            || stderr.contains("crate version") && stderr.contains("is already uploaded")
+        {
             info!("Package {} v{} already exists on crates.io, skipping", package.name, package.version);
             return Ok(());
         }
-        
+
         error!("Failed to publish {}: {}", package.name, stderr);
         error!("Output: {}", stdout);
         Err(CargoError::PublishError(format!("Failed to publish {}: {}", package.name, stderr)))
@@ -216,7 +225,7 @@ pub fn publish_packages_with_checkpoint(
     dry_run: bool,
     skip_published: bool,
     token: Option<&str>,
-    publish_interval: u64
+    publish_interval: u64,
 ) -> Result<()> {
     for (index, package) in packages.iter().enumerate() {
         if skip_published {
@@ -243,7 +252,7 @@ pub fn publish_packages_with_checkpoint(
                 // Mark as published in checkpoint
                 checkpoint.mark_published(package.name.clone(), package.version.clone());
                 checkpoint.save()?;
-                
+
                 // If this is not the last package and not in dry-run mode, wait for the interval
                 if index < packages.len() - 1 && !dry_run && publish_interval > 0 {
                     println!("Waiting {} seconds before publishing next package...", publish_interval);

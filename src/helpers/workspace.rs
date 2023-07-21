@@ -1,13 +1,11 @@
 use crate::errors::{CargoError, Result};
+use glob::glob;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
-use walkdir::WalkDir;
-use glob::glob;
-
 /// Represents a Cargo package
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CargoPackage {
@@ -73,25 +71,27 @@ pub fn parse_cargo_toml_with_workspace(path: &Path, workspace_package: Option<&t
     let version = if let Some(version_value) = package.get("version") {
         if let Some(version_str) = version_value.as_str() {
             version_str.to_string()
-        } else if let Some(version_table) = version_value.as_table() {
+        }
+        else if let Some(version_table) = version_value.as_table() {
             // Check for workspace inheritance
             if version_table.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false) {
                 // Try to get version from workspace package
                 if let Some(ws_pkg) = workspace_package {
-                    ws_pkg.get("version")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("0.0.0")
-                        .to_string()
-                } else {
+                    ws_pkg.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string()
+                }
+                else {
                     "0.0.0".to_string() // Default version when workspace info is not available
                 }
-            } else {
+            }
+            else {
                 return Err(CargoError::InvalidToml("Invalid version format".to_string()));
             }
-        } else {
+        }
+        else {
             return Err(CargoError::InvalidToml("Invalid version format".to_string()));
         }
-    } else {
+    }
+    else {
         return Err(CargoError::InvalidToml("Missing package version".to_string()));
     };
 
@@ -100,7 +100,8 @@ pub fn parse_cargo_toml_with_workspace(path: &Path, workspace_package: Option<&t
     let mut dependencies = Vec::new();
 
     // Extract dependencies from different sections
-    for section in ["dependencies", "build-dependencies"] { // Skip dev-dependencies to avoid self-references
+    for section in ["dependencies", "build-dependencies"] {
+        // Skip dev-dependencies to avoid self-references
         if let Some(deps) = toml_value.get(section) {
             if let Some(deps_table) = deps.as_table() {
                 for (dep_name, dep_value) in deps_table {
@@ -108,7 +109,7 @@ pub fn parse_cargo_toml_with_workspace(path: &Path, workspace_package: Option<&t
                     if dep_name == &name {
                         continue;
                     }
-                    
+
                     // Handle workspace dependencies that have workspace = true
                     if let Some(dep_obj) = dep_value.as_table() {
                         if dep_obj.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false) {
@@ -130,11 +131,11 @@ pub fn parse_cargo_toml_with_workspace(path: &Path, workspace_package: Option<&t
 /// Expands a glob pattern to matching paths
 fn expand_glob_pattern(workspace_root: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
     let mut result = Vec::new();
-    
+
     // Convert the pattern to an absolute path pattern
     let absolute_pattern = workspace_root.join(pattern);
     let pattern_str = absolute_pattern.to_string_lossy();
-    
+
     // Use the glob crate to expand the pattern
     match glob(&pattern_str) {
         Ok(entries) => {
@@ -149,7 +150,7 @@ fn expand_glob_pattern(workspace_root: &Path, pattern: &str) -> Result<Vec<PathB
             tracing::warn!("Failed to read glob pattern {}: {}", pattern, e);
         }
     }
-    
+
     Ok(result)
 }
 
@@ -190,10 +191,10 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
     for member_pattern in &members {
         // Expand glob patterns
         let expanded_paths = expand_glob_pattern(workspace_root, member_pattern)?;
-        
+
         for member_path in expanded_paths {
             member_paths.push(member_path.clone());
-            
+
             let cargo_toml = member_path.join("Cargo.toml");
             if cargo_toml.exists() {
                 if let Ok(package) = parse_cargo_toml_with_workspace(&cargo_toml, workspace_package) {
@@ -203,9 +204,5 @@ pub fn discover_workspace_packages(workspace_root: &Path) -> Result<CargoWorkspa
         }
     }
 
-    Ok(CargoWorkspace {
-        root: workspace_root.to_path_buf(),
-        members: member_paths,
-        packages,
-    })
+    Ok(CargoWorkspace { root: workspace_root.to_path_buf(), members: member_paths, packages })
 }

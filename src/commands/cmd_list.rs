@@ -1,6 +1,6 @@
 use crate::{CargoError, CommandOptions};
 use clap::Parser;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Parser)]
 pub struct ListCommand {
@@ -12,8 +12,12 @@ pub struct ListCommand {
 impl ListCommand {
     pub async fn run(&self, shared: &CommandOptions) -> Result<(), CargoError> {
         // Use the workspace root from the command if provided, otherwise use the shared one
-        let workspace_root =
-            if self.workspace_root != PathBuf::from(".") { self.workspace_root.clone() } else { shared.workspace_root.clone() };
+        let workspace_root = if self.workspace_root.as_path() != Path::new(".") {
+            self.workspace_root.clone()
+        }
+        else {
+            shared.workspace_root.clone()
+        };
 
         // Find and parse the workspace
         let workspace = crate::helpers::workspace::discover_workspace_packages(&workspace_root)?;

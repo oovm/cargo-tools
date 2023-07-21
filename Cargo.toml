@@ -1,14 +1,40 @@
-[workspace]
-resolver = "2"
-members = ["projects/*"]
-default-members = [
-    "projects/cargo-workspace",
-]
-exclude = [
-    "projects/.DS_Store",
-]
+[package]
+name = "cargo-tools"
+version = "0.1.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "Cargo workspace utilities: publish workspace members in dependency order"
+readme = "readme.md"
+license = "MPL-2.0"
+edition = "2021"
+homepage = "https://github.com/oovm/cargo-tools"
+repository = "https://github.com/oovm/cargo-tools"
+keywords = ["cargo", "workspace", "publish"]
+categories = ["development-tools::cargo-plugins"]
 
-[workspace.dependencies]
+[lib]
+name = "cargo_tools"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cargo-workspace"
+path = "bin/cargo-workspace.rs"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.5", features = ["derive"] }
+glob = "0.3"
+miette = { version = "7.0", features = ["fancy"] }
+petgraph = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+walkdir = "2.5"
+
+[lints.rust]
+missing_docs = "allow"
 
 [profile.release]
 lto = true

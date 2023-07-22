@@ -2,6 +2,8 @@
 
 /// 子命令实现。
 pub mod commands;
+/// `cargo cry` 多配置检查与仓库卫生扫描。
+pub mod cry;
 /// CLI 追踪与 miette 错误报告。
 pub mod diag;
 mod errors;

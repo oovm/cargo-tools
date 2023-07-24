@@ -37,10 +37,10 @@ jobs:
           dir="target/release"
           if [[ "${RUNNER_OS}" == "Windows" ]]; then
             powershell -NoProfile -Command "
-              Compress-Archive -Force -Path '${dir}/cargo-workspace.exe' -DestinationPath '${out}'
+              Compress-Archive -Force -Path '${dir}/cargo-workspace.exe','${dir}/cargo-cry.exe' -DestinationPath '${out}'
             "
           else
-            (cd "${dir}" && zip -j "../../${out}" cargo-workspace)
+            (cd "${dir}" && zip -j "../../${out}" cargo-workspace cargo-cry)
           fi
           ls -la "${out}"
       - name: Upload release archive

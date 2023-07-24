@@ -12,3 +12,8 @@ time-travel.*
 # Rust
 target/
 reword.pending.json
+reword.fixed.json
+cargo-cry*.log
+large-files.log
+missing-docs.log
+.cry-*

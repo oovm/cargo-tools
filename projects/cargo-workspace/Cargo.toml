@@ -1,0 +1,40 @@
+[package]
+name = "cargo-workspace-v2"
+version = "0.1.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "A tool to publish Cargo workspace packages in dependency order"
+categories = ["development-tools::cargo-plugins"]
+homepage = "https://github.com/oovm/cargo-tools"
+repository = "https://github.com/oovm/cargo-tools"
+documentation = "https://docs.rs/cargo-workspace-v2"
+readme = "readme.md"
+license = "MPL-2.0"
+edition = "2024"
+exclude = ["package.json", "tests/**"]
+keywords = ["cargo", "workspace", "publish"]
+
+[lib]
+name = "cargo_workspace"
+
+
+[[bin]]
+name = "cargo-workspace"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.0.32", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+toml = "0.8.23"
+petgraph = "0.6.5"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.20"
+tokio = { version = "1.48.0", features = ["full"] }
+
+[dev-dependencies]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true

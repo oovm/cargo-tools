@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/projects/cargo-workspace-publish"
+    directory: "/projects/cargo-workspace"
     target-branch: "dev"
     schedule:
       interval: "daily"

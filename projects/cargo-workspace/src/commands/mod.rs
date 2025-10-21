@@ -1,5 +1,5 @@
 use crate::{commands::cmd_publish::PublishCommand, CargoError, CargoWorkspaceCommand, CommandOptions};
-use clap::{Parser, Subcommand};
+use clap::Subcommand;
 
 mod cmd_list;
 mod cmd_publish;
@@ -19,7 +19,7 @@ pub enum WorkspaceCommands {
 
 impl CargoWorkspaceCommand {
     pub async fn run(&self) -> Result<(), CargoError> {
-        let mut options  = self.options.clone();
+        let options = self.options.clone();
         tracing::trace!("raw options: {}", options.workspace_root.display());
         // TODO: 写入一些配置
         tracing::trace!("final options: {}", options.workspace_root.display());

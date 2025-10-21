@@ -33,16 +33,35 @@ impl CargoWorkspaceCommand {
         // Find and parse the workspace
         let workspace = crate::helpers::workspace::discover_workspace_packages(&self.options.workspace_root)?;
 
-        // Perform topological sort to get the correct publish order
-        let sorted_packages = crate::helpers::topo_sort::topological_sort(&workspace)?;
-
-        // Filter packages that should be published
-        let publishable_packages = crate::helpers::topo_sort::filter_publishable_packages(sorted_packages);
-
         println!("Cargo Workspace Information");
         println!("=========================");
         println!("Workspace Root: {}", workspace.root.display());
         println!("Total Packages: {}", workspace.packages.len());
+
+        // Debug: Print all discovered packages
+        if workspace.packages.is_empty() {
+            println!("No packages found in workspace.");
+            println!("Workspace members patterns: {:?}", workspace.members);
+            return Ok(());
+        }
+
+        println!("\nDiscovered packages:");
+        for (name, package) in &workspace.packages {
+            println!("  - {} (version: {}, path: {})", name, package.version, package.path.display());
+        }
+
+        // Perform topological sort to get the correct publish order
+        let sorted_packages = match crate::helpers::topo_sort::topological_sort(&workspace) {
+            Ok(packages) => packages,
+            Err(e) => {
+                println!("Error during topological sort: {}", e);
+                return Err(e);
+            }
+        };
+
+        // Filter packages that should be published
+        let publishable_packages = crate::helpers::topo_sort::filter_publishable_packages(sorted_packages);
+
         println!("Publishable Packages: {}", publishable_packages.len());
 
         if !publishable_packages.is_empty() {

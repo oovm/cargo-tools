@@ -1,6 +1,6 @@
 [package]
 name = "cargo-workspace-v2"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Aster <192607617@qq.com>"]
 description = "A tool to publish Cargo workspace packages in dependency order"
 categories = ["development-tools::cargo-plugins"]

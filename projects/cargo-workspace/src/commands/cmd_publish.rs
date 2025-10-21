@@ -1,7 +1,7 @@
 use crate::{
+    CommandOptions,
     errors::{CargoError, Result},
     helpers::workspace::CargoPackage,
-    CommandOptions,
 };
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
@@ -29,47 +29,44 @@ pub struct PublishCommand {
 impl PublishCommand {
     pub async fn run(&self, shared: &CommandOptions) -> std::result::Result<(), CargoError> {
         // Use the workspace root from the command if provided, otherwise use the shared one
-        let workspace_root = if self.workspace_root != PathBuf::from(".") {
-            self.workspace_root.clone()
-        } else {
-            shared.workspace_root.clone()
-        };
-        
+        let workspace_root =
+            if self.workspace_root != PathBuf::from(".") { self.workspace_root.clone() } else { shared.workspace_root.clone() };
+
         // Use the dry_run flag from the command if provided, otherwise use the shared one
         let dry_run = self.dry_run || shared.dry_run;
-        
+
         // Use the skip_published flag from the command if provided, otherwise use the shared one
         let skip_published = self.skip_published || shared.skip_published;
-        
+
         // Use the token from the command if provided, otherwise use the shared one
         let token = self.token.as_ref().or(shared.token.as_ref());
-        
+
         // Find and parse the workspace
         let workspace = crate::helpers::workspace::discover_workspace_packages(&workspace_root)?;
-        
+
         // Perform topological sort to get the correct publish order
         let sorted_packages = crate::helpers::topo_sort::topological_sort(&workspace)?;
-        
+
         // Filter packages that should be published
         let publishable_packages = crate::helpers::topo_sort::filter_publishable_packages(sorted_packages);
-        
+
         if publishable_packages.is_empty() {
             println!("No packages to publish.");
             return Ok(());
         }
-        
+
         println!("Found {} packages to publish:", publishable_packages.len());
         for package in &publishable_packages {
             println!("  - {} v{}", package.name, package.version);
         }
-        
+
         if dry_run {
             println!("Running in dry-run mode. No packages will be published.");
         }
-        
+
         // Publish the packages
         publish_packages(&publishable_packages, dry_run, skip_published, token.map(|s| s.as_str()))?;
-        
+
         println!("All packages published successfully!");
         Ok(())
     }

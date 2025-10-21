@@ -1,24 +1,25 @@
+use crate::{
+    errors::{CargoError, Result},
+    helpers::workspace::{CargoPackage, CargoWorkspace},
+};
+use petgraph::{Directed, Graph, algo::toposort};
 use std::collections::{HashMap, HashSet};
-use petgraph::{Directed, Graph};
-use petgraph::algo::toposort;
-use crate::errors::{CargoError, Result};
-use crate::helpers::workspace::{CargoWorkspace, CargoPackage};
 
 /// Performs topological sort on workspace packages based on their dependencies
 pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>> {
     let mut graph: Graph<String, (), Directed> = Graph::new();
     let mut node_indices: HashMap<String, petgraph::prelude::NodeIndex> = HashMap::new();
-    
+
     // Add all packages as nodes
     for (name, _package) in &workspace.packages {
         let index = graph.add_node(name.clone());
         node_indices.insert(name.clone(), index);
     }
-    
+
     // Add edges based on dependencies
     for (name, package) in &workspace.packages {
         let from_index = node_indices.get(name).unwrap();
-        
+
         for dep in &package.dependencies {
             // Only add edges for dependencies that are also in the workspace
             if let Some(to_index) = node_indices.get(dep) {
@@ -26,7 +27,7 @@ pub fn topological_sort(workspace: &CargoWorkspace) -> Result<Vec<CargoPackage>>
             }
         }
     }
-    
+
     // Perform topological sort
     match toposort(&graph, None) {
         Ok(sorted_indices) => {
@@ -53,19 +54,19 @@ fn find_cycles(
     node_indices: &HashMap<String, petgraph::prelude::NodeIndex>,
 ) -> Vec<String> {
     use petgraph::visit::Dfs;
-    
+
     let mut cycles = Vec::new();
     let mut visited = HashSet::new();
-    
+
     for (name, index) in node_indices {
         if !visited.contains(name) {
             let mut dfs = Dfs::new(graph, *index);
             let mut path = Vec::new();
             let mut path_set = HashSet::new();
-            
+
             while let Some(nx) = dfs.next(graph) {
                 let node_name = &graph[nx];
-                
+
                 if path_set.contains(node_name) {
                     // Found a cycle
                     if let Some(pos) = path.iter().position(|n| n == node_name) {
@@ -74,14 +75,14 @@ fn find_cycles(
                     }
                     break;
                 }
-                
+
                 path.push(node_name.clone());
                 path_set.insert(node_name.clone());
                 visited.insert(node_name.clone());
             }
         }
     }
-    
+
     cycles
 }
 

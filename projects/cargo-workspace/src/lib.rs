@@ -14,6 +14,13 @@ pub use commands::WorkspaceCommands;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
+#[command(name = "cargo-workspace", bin_name = "cargo")]
+pub enum Cargo {
+    #[clap(alias = "ws")]
+    Workspace(CargoWorkspaceCommand),
+}
+
+#[derive(Debug, Parser)]
 #[command(name = "cargo-workspace")]
 #[command(about = "A tool to publish Cargo workspace packages in dependency order")]
 #[command(version)]

@@ -25,7 +25,7 @@ pub struct CargoWorkspaceCommand {
     pub command: Option<WorkspaceCommands>,
 }
 
-#[derive(Debug, Args)]
+#[derive(Clone, Debug, Args)]
 pub struct CommandOptions {
     /// The path to the workspace root directory
     #[arg(short, long, default_value = ".")]

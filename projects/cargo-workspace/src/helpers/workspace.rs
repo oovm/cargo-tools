@@ -100,16 +100,24 @@ pub fn parse_cargo_toml_with_workspace(path: &Path, workspace_package: Option<&t
     let mut dependencies = Vec::new();
 
     // Extract dependencies from different sections
-    for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+    for section in ["dependencies", "build-dependencies"] { // Skip dev-dependencies to avoid self-references
         if let Some(deps) = toml_value.get(section) {
             if let Some(deps_table) = deps.as_table() {
                 for (dep_name, dep_value) in deps_table {
-                    // Skip workspace dependencies that have workspace = true
+                    // Skip self-dependencies (packages depending on themselves)
+                    if dep_name == &name {
+                        continue;
+                    }
+                    
+                    // Handle workspace dependencies that have workspace = true
                     if let Some(dep_obj) = dep_value.as_table() {
                         if dep_obj.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false) {
-                            continue; // Skip workspace dependencies
+                            // This is a workspace dependency, add it to dependencies
+                            dependencies.push(dep_name.clone());
+                            continue;
                         }
                     }
+                    // Add regular dependencies
                     dependencies.push(dep_name.clone());
                 }
             }

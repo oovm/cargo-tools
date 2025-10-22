@@ -28,6 +28,10 @@ pub struct PublishCommand {
     /// Registry token for publishing
     #[arg(long)]
     pub token: Option<String>,
+
+    /// Interval in seconds between publishing packages (default: 5)
+    #[arg(long, default_value = "5")]
+    pub publish_interval: u64,
 }
 
 impl PublishCommand {
@@ -102,7 +106,8 @@ impl PublishCommand {
             &mut checkpoint,
             dry_run,
             skip_published,
-            token.map(|s| s.as_str())
+            token.map(|s| s.as_str()),
+            self.publish_interval
         );
 
         match result {
@@ -210,9 +215,10 @@ pub fn publish_packages_with_checkpoint(
     checkpoint: &mut PublishCheckpoint,
     dry_run: bool,
     skip_published: bool,
-    token: Option<&str>
+    token: Option<&str>,
+    publish_interval: u64
 ) -> Result<()> {
-    for package in packages {
+    for (index, package) in packages.iter().enumerate() {
         if skip_published {
             match is_package_published(package) {
                 Ok(true) => {
@@ -237,6 +243,12 @@ pub fn publish_packages_with_checkpoint(
                 // Mark as published in checkpoint
                 checkpoint.mark_published(package.name.clone(), package.version.clone());
                 checkpoint.save()?;
+                
+                // If this is not the last package and not in dry-run mode, wait for the interval
+                if index < packages.len() - 1 && !dry_run && publish_interval > 0 {
+                    println!("Waiting {} seconds before publishing next package...", publish_interval);
+                    std::thread::sleep(std::time::Duration::from_secs(publish_interval));
+                }
             }
             Err(e) => {
                 // Don't mark as published if there was an error

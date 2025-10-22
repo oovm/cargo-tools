@@ -195,10 +195,6 @@ The tool provides detailed error messages for common issues:
 - **Missing Workspace**: Reports when no workspace is found in the specified directory
 - **Invalid TOML**: Reports parsing errors in `Cargo.toml` files
 
-## License
-
-This project is licensed under the MPL-2.0 license.
-
 ## Design Philosophy
 
 This tool directly runs `cargo publish` without any special processing. While this approach may not be the fastest, it provides the strongest compatibility with the Cargo ecosystem.

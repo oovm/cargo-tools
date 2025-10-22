@@ -29,8 +29,8 @@ pub struct PublishCommand {
     #[arg(long)]
     pub token: Option<String>,
 
-    /// Interval in seconds between publishing packages (default: 5)
-    #[arg(long, default_value = "5")]
+    /// Interval in seconds between publishing packages (default: 0)
+    #[arg(long, default_value = "0")]
     pub publish_interval: u64,
 }
 

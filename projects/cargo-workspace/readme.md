@@ -115,7 +115,7 @@ This resumes a publish operation that was interrupted, using the checkpoint file
 cargo workspace publish --publish-interval 10
 ```
 
-This sets a 10-second interval between publishing each package to avoid triggering rate limits on crates.io. The default interval is 5 seconds.
+This sets a 10-second interval between publishing each package. The default interval is 0 seconds (no interval). Use this option if you want to add a delay between package publications.
 
 ## How It Works
 

@@ -2,6 +2,14 @@
 
 A command-line tool for publishing Cargo workspace projects in dependency order.
 
+### Resume from a previous publish session
+
+```bash
+cargo workspace publish --resume
+```
+
+If a publish operation is interrupted (e.g., due to network issues), you can resume from where it left off using the `--resume` flag. The tool saves a checkpoint file in `target/cargo-workspace-publish.toml` after each successful package publication.
+
 ## Features
 
 - Automatically discover all projects in a workspace
@@ -12,6 +20,7 @@ A command-line tool for publishing Cargo workspace projects in dependency order.
 - Detect circular dependencies
 - Support for glob patterns in workspace members
 - Handle workspace inheritance for package versions
+- Resume from interrupted publish sessions with checkpoint mechanism
 
 ## Installation
 
@@ -91,6 +100,14 @@ cargo workspace publish --token your_token
 ```
 
 This provides a registry token for publishing packages.
+
+### Resume from a previous publish session
+
+```bash
+cargo workspace publish --resume
+```
+
+This resumes a publish operation that was interrupted, using the checkpoint file saved in `target/cargo-workspace-publish.toml`.
 
 ## How It Works
 

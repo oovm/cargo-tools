@@ -1,7 +1,7 @@
 use crate::{
     CommandOptions,
     errors::{CargoError, Result},
-    helpers::workspace::CargoPackage,
+    helpers::{checkpoint::PublishCheckpoint, workspace::CargoPackage},
 };
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
@@ -20,6 +20,10 @@ pub struct PublishCommand {
     /// Skip packages that are already published
     #[arg(long)]
     pub skip_published: bool,
+
+    /// Use checkpoint to resume from where it left off
+    #[arg(long)]
+    pub resume: bool,
 
     /// Registry token for publishing
     #[arg(long)]
@@ -55,8 +59,36 @@ impl PublishCommand {
             return Ok(());
         }
 
-        println!("Found {} packages to publish:", publishable_packages.len());
-        for package in &publishable_packages {
+        // Initialize or load checkpoint
+        let mut checkpoint = if self.resume {
+            match PublishCheckpoint::load(&workspace_root)? {
+                Some(cp) => {
+                    println!("Resuming from previous publish session.");
+                    cp
+                }
+                None => {
+                    println!("No previous publish session found, starting fresh.");
+                    PublishCheckpoint::new(workspace_root.clone())
+                }
+            }
+        } else {
+            // Remove any existing checkpoint if not resuming
+            PublishCheckpoint::remove(&workspace_root)?;
+            PublishCheckpoint::new(workspace_root.clone())
+        };
+
+        // Filter packages based on checkpoint
+        let packages_to_publish: Vec<&CargoPackage> = publishable_packages.iter()
+            .filter(|p| !checkpoint.is_published(&p.name))
+            .collect();
+
+        if packages_to_publish.is_empty() {
+            println!("All packages have already been published.");
+            return Ok(());
+        }
+
+        println!("Found {} packages to publish:", packages_to_publish.len());
+        for package in &packages_to_publish {
             println!("  - {} v{}", package.name, package.version);
         }
 
@@ -64,11 +96,35 @@ impl PublishCommand {
             println!("Running in dry-run mode. No packages will be published.");
         }
 
-        // Publish the packages
-        publish_packages(&publishable_packages, dry_run, skip_published, token.map(|s| s.as_str()))?;
+        // Publish the packages with checkpoint support
+        let result = publish_packages_with_checkpoint(
+            &packages_to_publish,
+            &mut checkpoint,
+            dry_run,
+            skip_published,
+            token.map(|s| s.as_str())
+        );
 
-        println!("All packages published successfully!");
-        Ok(())
+        match result {
+            Ok(_) => {
+                // All packages published successfully, remove checkpoint
+                if !dry_run {
+                    PublishCheckpoint::remove(&workspace_root)?;
+                    println!("All packages published successfully!");
+                } else {
+                    println!("Dry-run completed successfully!");
+                }
+                Ok(())
+            }
+            Err(e) => {
+                // Save checkpoint before returning error
+                if !dry_run {
+                    checkpoint.save()?;
+                    println!("Publishing interrupted. Checkpoint saved. Use --resume to continue.");
+                }
+                Err(e)
+            }
+        }
     }
 }
 
@@ -148,7 +204,51 @@ pub fn is_package_published(package: &CargoPackage) -> Result<bool> {
     }
 }
 
-/// Publishes packages in order, skipping already published ones
+/// Publishes packages in order, skipping already published ones, with checkpoint support
+pub fn publish_packages_with_checkpoint(
+    packages: &[&CargoPackage],
+    checkpoint: &mut PublishCheckpoint,
+    dry_run: bool,
+    skip_published: bool,
+    token: Option<&str>
+) -> Result<()> {
+    for package in packages {
+        if skip_published {
+            match is_package_published(package) {
+                Ok(true) => {
+                    info!("Skipping already published package: {}", package.name);
+                    // Mark as published in checkpoint even if we skipped it
+                    checkpoint.mark_published(package.name.clone());
+                    checkpoint.save()?;
+                    continue;
+                }
+                Ok(false) => {
+                    // Package is not published, continue with publishing
+                }
+                Err(e) => {
+                    warn!("Failed to check if package {} is published: {}, proceeding with publish", package.name, e);
+                }
+            }
+        }
+
+        // Try to publish the package
+        match publish_package(package, dry_run, token) {
+            Ok(_) => {
+                // Mark as published in checkpoint
+                checkpoint.mark_published(package.name.clone());
+                checkpoint.save()?;
+            }
+            Err(e) => {
+                // Don't mark as published if there was an error
+                return Err(e);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Publishes packages in order, skipping already published ones (legacy function without checkpoint)
 pub fn publish_packages(packages: &[CargoPackage], dry_run: bool, skip_published: bool, token: Option<&str>) -> Result<()> {
     for package in packages {
         if skip_published {

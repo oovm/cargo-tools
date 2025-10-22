@@ -79,7 +79,7 @@ impl PublishCommand {
 
         // Filter packages based on checkpoint
         let packages_to_publish: Vec<&CargoPackage> = publishable_packages.iter()
-            .filter(|p| !checkpoint.is_published(&p.name))
+            .filter(|p| !checkpoint.is_published(&p.name, &p.version))
             .collect();
 
         if packages_to_publish.is_empty() {
@@ -218,7 +218,7 @@ pub fn publish_packages_with_checkpoint(
                 Ok(true) => {
                     info!("Skipping already published package: {}", package.name);
                     // Mark as published in checkpoint even if we skipped it
-                    checkpoint.mark_published(package.name.clone());
+                    checkpoint.mark_published(package.name.clone(), package.version.clone());
                     checkpoint.save()?;
                     continue;
                 }
@@ -235,7 +235,7 @@ pub fn publish_packages_with_checkpoint(
         match publish_package(package, dry_run, token) {
             Ok(_) => {
                 // Mark as published in checkpoint
-                checkpoint.mark_published(package.name.clone());
+                checkpoint.mark_published(package.name.clone(), package.version.clone());
                 checkpoint.save()?;
             }
             Err(e) => {
